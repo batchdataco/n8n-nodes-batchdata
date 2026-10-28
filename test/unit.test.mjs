@@ -56,8 +56,11 @@ test('node description exposes the planned resources and no wallet or webhook fi
 	assert.deepEqual(resource.options.map((o) => o.value).sort(), [
 		'address',
 		'customApiCall',
+		'investor',
 		'phone',
 		'property',
+		'propertyMonitor',
+		'searchSession',
 	]);
 	const names = description.properties.map((p) => p.name.toLowerCase());
 	assert.equal(

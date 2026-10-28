@@ -2,12 +2,17 @@ import type {
 	INode,
 	IDataObject,
 	IExecuteFunctions,
+	IHookFunctions,
 	IHttpRequestMethods,
 	IHttpRequestOptions,
+	IPollFunctions,
+	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
+import { catalog } from './catalogProperties';
+import { checkApiRequest } from './catalogEngine';
 import { API_HOST, FORBIDDEN_BODY_KEYS, SUPPORT_EMAIL } from './constants';
 
 export function isPlainObject(value: unknown): value is IDataObject {
@@ -36,7 +41,7 @@ export function stripForbiddenKeys<T>(value: T): T {
 	if (isPlainObject(value)) {
 		const out: IDataObject = {};
 		for (const [key, entry] of Object.entries(value)) {
-			if (FORBIDDEN_BODY_KEYS.includes(key)) continue;
+			if (FORBIDDEN_BODY_KEYS.some((forbidden) => forbidden.toLowerCase() === key.toLowerCase())) continue;
 			out[key] = stripForbiddenKeys(entry);
 		}
 		return out as unknown as T;
@@ -98,7 +103,7 @@ export function toDateOnly(value: unknown): string | undefined {
  * Validate a Custom API Call path. The host is fixed; wallet and account-balance
  * endpoints are never reachable from this node.
  */
-export function assertCustomPath(path: string): string {
+export function assertCustomPath(path: string, method = 'GET'): string {
 	const trimmed = (path ?? '').trim();
 	if (!trimmed.startsWith('/api/')) {
 		throw new Error('Path must start with /api/ (for example /api/v1/address/verify)');
@@ -112,7 +117,8 @@ export function assertCustomPath(path: string): string {
 	if (/wallet/i.test(decodeURIComponentSafe(trimmed))) {
 		throw new Error('Wallet endpoints are not available through this node');
 	}
-	return trimmed;
+	// Also blocks asynchronous (callback) endpoints and creating monitors with a user-supplied callback.
+	return checkApiRequest(catalog.apiRequest.guard, method, trimmed);
 }
 
 function decodeURIComponentSafe(text: string): string {
@@ -123,8 +129,14 @@ function decodeURIComponentSafe(text: string): string {
 	}
 }
 
+export type HttpContext =
+	| IExecuteFunctions
+	| IPollFunctions
+	| IHookFunctions
+	| IWebhookFunctions;
+
 export async function batchDataRequest(
-	this: IExecuteFunctions,
+	this: HttpContext,
 	method: IHttpRequestMethods,
 	path: string,
 	body?: IDataObject,
@@ -139,8 +151,9 @@ export async function batchDataRequest(
 	if (body !== undefined && method !== 'GET') options.body = body;
 	if (qs !== undefined && Object.keys(qs).length > 0) options.qs = qs;
 
-	return (await this.helpers.httpRequestWithAuthentication.call(
-		this,
+	const helpers = this.helpers as IExecuteFunctions['helpers'];
+	return (await helpers.httpRequestWithAuthentication.call(
+		this as IExecuteFunctions,
 		'batchDataApi',
 		options,
 	)) as IDataObject;
@@ -196,7 +209,7 @@ export function describeHttpError(httpCode: string | undefined): string | undefi
 }
 
 export function toNodeApiError(
-	context: IExecuteFunctions,
+	context: { getNode: IExecuteFunctions['getNode'] },
 	error: unknown,
 	itemIndex: number,
 ): NodeApiError | NodeOperationError {

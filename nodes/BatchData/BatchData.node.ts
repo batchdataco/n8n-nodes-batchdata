@@ -1,9 +1,8 @@
 import type {
-	ICredentialsDecrypted,
-	ICredentialTestFunctions,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	IDataObject,
 	IExecuteFunctions,
-	INodeCredentialTestResult,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -20,8 +19,16 @@ import {
 	type LookupIdentifier,
 	type SkipTraceVersion,
 } from './builders';
+import { runCatalogOperation } from './catalogExecute';
+import {
+	allCatalogProperties,
+	catalog,
+	mergeOperations,
+	operationProperty,
+	RESOURCE_VALUE,
+} from './catalogProperties';
 import { API_HOST } from './constants';
-import { evaluateCredentialProbe } from './credentialTest';
+import { credentialTestMethods } from './credentialMethods';
 import {
 	addressFields,
 	addressOperations,
@@ -46,6 +53,31 @@ import {
 	toNodeApiError,
 } from './GenericFunctions';
 
+const CATALOG_RESOURCES = new Set(Object.values(RESOURCE_VALUE));
+
+const propertyOperationProps = [...propertyOperations];
+const addressOperationProps = [...addressOperations];
+mergeOperations(propertyOperationProps, 'property');
+mergeOperations(addressOperationProps, 'address');
+
+async function listForDropdown(
+	ctx: ILoadOptionsFunctions,
+	path: string,
+	listPath: 'sessions' | 'subscriptions',
+): Promise<INodePropertyOptions[]> {
+	const response = (await ctx.helpers.httpRequestWithAuthentication.call(ctx, 'batchDataApi', {
+		method: 'GET',
+		url: `${API_HOST}${path}`,
+		json: true,
+		qs: { take: 100 },
+	})) as IDataObject;
+	const list = asArray((response.results as IDataObject | undefined)?.[listPath]);
+	return list.map((entry) => {
+		const id = String(entry.id ?? entry.subscriptionId ?? '');
+		return { name: id, value: id };
+	});
+}
+
 function asArray(value: unknown): IDataObject[] {
 	return Array.isArray(value) ? (value as IDataObject[]) : [];
 }
@@ -64,7 +96,7 @@ export class BatchData implements INodeType {
 		version: [1],
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description:
-			'Search properties, look up property data, find owner contacts, verify addresses and check phone numbers',
+			'Search properties, look up property data, skip trace owners, verify addresses, check phone numbers, get permits, find investors, and manage search sessions and property monitors',
 		defaults: {
 			name: 'BatchData',
 		},
@@ -87,55 +119,41 @@ export class BatchData implements INodeType {
 				options: [
 					{ name: 'Address', value: 'address' },
 					{ name: 'Custom API Call', value: 'customApiCall' },
+					{ name: 'Investor', value: 'investor' },
 					{ name: 'Phone', value: 'phone' },
 					{ name: 'Property', value: 'property' },
+					{ name: 'Property Monitor', value: 'propertyMonitor' },
+					{ name: 'Search Session', value: 'searchSession' },
 				],
 				default: 'property',
 			},
-			...propertyOperations,
+			...propertyOperationProps,
 			...propertySearchFields,
 			...propertyLookupFields,
 			...propertySkipTraceFields,
-			...addressOperations,
+			...addressOperationProps,
 			...addressFields,
 			...phoneOperations,
 			...phoneFields,
 			...customApiCallOperations,
 			...customApiCallFields,
+			operationProperty('investor', 'investor_buybox'),
+			operationProperty('searchSession', 'list_search_sessions'),
+			operationProperty('propertyMonitor', 'get_monitor'),
+			...allCatalogProperties(),
 		],
 	};
 
 	methods = {
-		credentialTest: {
-			async batchDataApiTest(
-				this: ICredentialTestFunctions,
-				credential: ICredentialsDecrypted,
-			): Promise<INodeCredentialTestResult> {
-				const token = String(credential.data?.apiToken ?? '').trim();
-				if (token === '') {
-					return { status: 'Error', message: 'API token is empty' };
-				}
-				try {
-					// ICredentialTestFunctions only exposes the legacy `request` helper (no `httpRequest`).
-					// eslint-disable-next-line @n8n/community-nodes/no-deprecated-workflow-functions
-					const response = await this.helpers.request({
-						method: 'POST',
-						uri: `${API_HOST}/api/v1/address/verify`,
-						headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-						body: { requests: [] },
-						json: true,
-						resolveWithFullResponse: true,
-						simple: false,
-					});
-					return evaluateCredentialProbe(Number(response?.statusCode));
-				} catch (error) {
-					return {
-						status: 'Error',
-						message: `Could not reach the BatchData API: ${(error as Error).message}`,
-					};
-				}
+		loadOptions: {
+			async getSearchSessions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await listForDropdown(this, '/api/v2/property/search-sessions', 'sessions');
+			},
+			async getMonitors(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await listForDropdown(this, '/api/v2/property-subscription', 'subscriptions');
 			},
 		},
+		credentialTest: credentialTestMethods,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -292,7 +310,7 @@ export class BatchData implements INodeType {
 						| 'PATCH'
 						| 'POST'
 						| 'PUT';
-					const path = assertCustomPath(this.getNodeParameter('path', i) as string);
+					const path = assertCustomPath(this.getNodeParameter('path', i) as string, method);
 					const qs = parseJsonObject(
 						this.getNodeParameter('queryParameters', i, ''),
 						'Query Parameters',
@@ -310,6 +328,12 @@ export class BatchData implements INodeType {
 						qs,
 					);
 					push([response]);
+				} else if (
+					CATALOG_RESOURCES.has(resource) &&
+					catalog.ops.some((op) => op.key === operation && RESOURCE_VALUE[op.resource ?? ''] === resource)
+				) {
+					const op = catalog.ops.find((entry) => entry.key === operation)!;
+					push(await runCatalogOperation(this, op, i));
 				} else {
 					throw new NodeOperationError(
 						this.getNode(),

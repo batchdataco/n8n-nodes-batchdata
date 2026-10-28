@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-batchdata",
-  "version": "0.1.0",
-  "description": "n8n community node for the BatchData API: property search, property lookup, skip trace, address verification and phone DNC/TCPA checks",
+  "version": "0.2.0",
+  "description": "n8n community nodes for the BatchData API: property search and lookup, skip trace, reverse skip trace, permits, investors, address and phone checks, search sessions, property monitors, polling and instant triggers",
   "license": "MIT",
   "homepage": "https://github.com/batchdataco/batchdata-n8n-node#readme",
   "keywords": [
@@ -39,7 +39,9 @@
       "dist/credentials/BatchDataApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/BatchData/BatchData.node.js"
+      "dist/nodes/BatchData/BatchData.node.js",
+      "dist/nodes/BatchDataTrigger/BatchDataTrigger.node.js",
+      "dist/nodes/BatchDataMonitorTrigger/BatchDataMonitorTrigger.node.js"
     ]
   },
   "devDependencies": {
