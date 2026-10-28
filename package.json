@@ -1,0 +1,55 @@
+{
+  "name": "n8n-nodes-batchdata",
+  "version": "0.1.0",
+  "description": "n8n community node for the BatchData API: property search, property lookup, skip trace, address verification and phone DNC/TCPA checks",
+  "license": "MIT",
+  "homepage": "https://github.com/batchdataco/batchdata-n8n-node#readme",
+  "keywords": [
+    "n8n-community-node-package",
+    "batchdata",
+    "real estate",
+    "property data",
+    "skip trace"
+  ],
+  "author": {
+    "name": "BatchData",
+    "email": "support@batchservice.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/batchdataco/batchdata-n8n-node.git"
+  },
+  "scripts": {
+    "build": "n8n-node build",
+    "build:watch": "tsc --watch",
+    "dev": "n8n-node dev",
+    "lint": "n8n-node lint",
+    "lint:fix": "n8n-node lint --fix",
+    "release": "n8n-node release",
+    "prepublishOnly": "n8n-node prerelease",
+    "test": "npm run build && node --test \"test/*.test.mjs\""
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "strict": true,
+    "credentials": [
+      "dist/credentials/BatchDataApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/BatchData/BatchData.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@n8n/node-cli": "*",
+    "eslint": "9.32.0",
+    "prettier": "3.6.2",
+    "release-it": "^21.1.0",
+    "typescript": "5.9.2"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
