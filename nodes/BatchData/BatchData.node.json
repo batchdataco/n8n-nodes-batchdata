@@ -1,0 +1,18 @@
+{
+	"node": "n8n-nodes-batchdata.batchData",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Data & Storage", "Sales"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://github.com/batchdataco/batchdata-n8n-node#credentials"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/batchdataco/batchdata-n8n-node#readme"
+			}
+		]
+	}
+}
