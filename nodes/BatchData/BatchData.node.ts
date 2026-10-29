@@ -325,7 +325,7 @@ export class BatchData implements INodeType {
 						method,
 						path,
 						stripForbiddenKeys(rawBody),
-						qs,
+						stripForbiddenKeys(qs),
 					);
 					push([response]);
 				} else if (

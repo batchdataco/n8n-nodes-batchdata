@@ -117,3 +117,7 @@ support@batchservice.com
 ## License
 
 [MIT](LICENSE)
+
+## License
+
+The code in this repository is released under the MIT License (see `LICENSE`). The BatchData API and the data it returns are proprietary to BatchData (batchdata.io) and are subject to BatchData's terms of service; the MIT License does not cover them. Support: support@batchservice.com
