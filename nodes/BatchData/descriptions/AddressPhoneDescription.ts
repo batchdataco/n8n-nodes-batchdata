@@ -113,7 +113,7 @@ export const customApiCallOperations: INodeProperties[] = [
 		displayOptions: { show: { resource: ['customApiCall'] } },
 		options: [
 			{
-				name: 'Make a Custom API Call',
+				name: 'Make',
 				value: 'request',
 				description:
 					'Call any BatchData API endpoint under /api/. Billing follows the endpoint you call. Wallet endpoints are blocked.',
