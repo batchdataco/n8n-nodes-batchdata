@@ -197,9 +197,9 @@ export const propertySearchFields: INodeProperties[] = [
 		name: 'take',
 		type: 'number',
 		typeOptions: { minValue: 0, maxValue: 100 },
-		default: 25,
+		default: 1,
 		description:
-			'Max number of results to return (0 to 100). A value of 0 returns only the count and is billed as one record.',
+			'Max number of results to return (0 to 100). Default 1 to avoid unexpected billing. A value of 0 returns only the count and is billed as one record. Billed per returned property record.',
 		displayOptions: { show: showFor('search') },
 	},
 	{

@@ -201,6 +201,8 @@ export function describeHttpError(httpCode: string | undefined): string | undefi
 			return `The BatchData API token was rejected. Check the token in your BatchData API credential. Questions: ${SUPPORT_EMAIL}`;
 		case '403':
 			return `The request was refused. The token may lack permission for this endpoint. Questions: ${SUPPORT_EMAIL}`;
+		case '402':
+			return 'The BatchData account balance is too low. Add funds and try again.';
 		case '429':
 			return 'BatchData rate limit reached. Slow the workflow down or retry later.';
 		default:

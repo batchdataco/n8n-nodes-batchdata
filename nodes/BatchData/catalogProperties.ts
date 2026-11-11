@@ -5,6 +5,37 @@ import type { Catalog, CatalogField, CatalogOp } from './catalogTypes';
 
 export const catalog = catalogJson as unknown as Catalog;
 
+// n8n-only cost overrides. The vendored catalog.json stays unchanged so it can
+// stay in sync with the shared catalog. Billed list operations default to 1
+// result; the billed polling trigger defaults to 5 per check.
+const N8N_TAKE_DEFAULTS: Record<string, [number, string]> = {
+	get_permits: [
+		1,
+		'Whole number from 1 to 100. Default 1 to avoid unexpected billing. Billed per result.',
+	],
+	investor_buybox: [
+		1,
+		'Whole number from 1 to 100. Default 1 to avoid unexpected billing. Billed per result.',
+	],
+	investor_properties: [
+		1,
+		'Whole number from 1 to 100. Default 1 to avoid unexpected billing. Billed per result.',
+	],
+	new_session_property: [
+		5,
+		'Whole number from 1 to 100. Default 5. You are billed per property delivered on each check.',
+	],
+};
+for (const op of [...catalog.ops, ...catalog.triggers]) {
+	const override = N8N_TAKE_DEFAULTS[op.key];
+	const field = override && (op.fields ?? []).find((f) => f.key === 'take');
+	if (field) {
+		field.default = override[0];
+		field.help = override[1];
+	}
+}
+
+
 /** Catalog resource key -> n8n resource value. `custom` is the existing Custom API Call resource. */
 export const RESOURCE_VALUE: Record<string, string> = {
 	property: 'property',
