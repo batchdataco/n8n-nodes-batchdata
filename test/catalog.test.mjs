@@ -362,3 +362,59 @@ test('package registers all three nodes and ships the official logo', () => {
 		assert.ok(!banned.test(readFileSync(file, 'utf8')), file);
 	}
 });
+
+test('billed searches and the session trigger default to a small Max Results', () => {
+	const action = new BatchData();
+	const trigger = new BatchDataTrigger();
+	const takeDefault = (node, name) => node.description.properties.find((p) => p.name === name)?.default;
+	assert.equal(takeDefault(action, 'get_permits_take'), 1);
+	assert.equal(takeDefault(action, 'investor_buybox_take'), 1);
+	assert.equal(takeDefault(action, 'investor_properties_take'), 1);
+	assert.equal(takeDefault(trigger, 'new_session_property_take'), 5);
+	const searchLimit = action.description.properties.find(
+		(p) => p.name === 'take' && p.displayOptions?.show?.operation?.includes('search'),
+	);
+	assert.equal(searchLimit?.default, 1);
+	const raw = JSON.parse(readFileSync(join(root, 'nodes/BatchData/catalog.json'), 'utf8'));
+	assert.equal(raw.ops.find((op) => op.key === 'get_permits').fields.find((f) => f.key === 'take').default, 25);
+});
+
+test('row-level Your Reference ID reaches the request in batch modules', async () => {
+	const cases = [
+		[
+			'batch_skip_trace',
+			'batch_skip_trace_properties',
+			{ result: { data: [{ persons: [] }], meta: { results: { matchCount: 0, requestCount: 1 } } } },
+		],
+		[
+			'batch_lookup_property',
+			'batch_lookup_property_addresses',
+			{ results: { properties: [] } },
+		],
+	];
+	for (const [operation, field, response] of cases) {
+		const { calls } = await runNode({
+			params: [
+				{
+					resource: 'property',
+					operation,
+					[field]: {
+						rows: [{ street: '1 A St', city: 'X', state: 'AZ', zip: '85001', request_id: 'ROW-1' }],
+					},
+				},
+			],
+			responses: [response],
+		});
+		assert.ok(JSON.stringify(calls[0].body).includes('ROW-1'), `${operation} dropped the row reference`);
+	}
+});
+
+test('package metadata points at this GitHub repo and is a 0.2.1 release', () => {
+	const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+	assert.equal(pkg.version, '0.2.1');
+	assert.equal(pkg.repository.url, 'git+https://github.com/batchdataco/n8n-nodes-batchdata.git');
+	assert.match(pkg.homepage, /github\.com\/batchdataco\/n8n-nodes-batchdata/);
+	assert.ok(pkg.keywords.includes('n8n-community-node-package'));
+	assert.equal(pkg.license, 'MIT');
+	assert.ok(!('dependencies' in pkg) || Object.keys(pkg.dependencies ?? {}).length === 0);
+});

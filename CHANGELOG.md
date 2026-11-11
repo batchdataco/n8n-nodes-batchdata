@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.1
+
+- Published to npm from GitHub Actions with provenance. The package `repository` field points at this repo (`batchdataco/n8n-nodes-batchdata`).
+- Safer billed defaults: Property Search, Get Property Permits, Find Investors, and Get Investor Properties default to 1 result; the billed search-session trigger defaults to 5 per check. The shared catalog.json is unchanged; these are n8n-only overrides.
+- HTTP 402 now explains that the account balance is too low and funds need to be added.
+- README: install from npm, current Creator Portal docs link, and a single license section.
+
+
+## 0.2.0
 
 - New resources: Investor, Search Session, Property Monitor.
 - New operations: reverse skip trace, permits, batch skip trace (V3), batch look up, autocomplete, geocode, reverse geocode, batch verify addresses, investor buy box and properties, list/create/delete search sessions, list/get/create/delete property monitors (stream delivery).
@@ -10,7 +18,7 @@
 - Official BatchData logo.
 - Operations come from a shared catalog (`nodes/BatchData/catalog.json`) with a drift test.
 
-## 0.1.0 (unreleased)
+## 0.1.0
 
 - Credential: BatchData API token (Bearer) with a connection test.
 - Property: Search, Look Up (all attributes), Skip Trace (V1 and V3).

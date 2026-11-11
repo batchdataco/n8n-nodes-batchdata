@@ -2,7 +2,7 @@
 
 Three [n8n](https://n8n.io) community nodes for the [BatchData](https://batchdata.io) API: **BatchData** (actions), **BatchData Trigger** (polling) and **BatchData Monitor Trigger** (instant). Search properties, pull full property data, find owner contacts, check permits, find investors, verify addresses and phones, run search sessions and monitor properties inside your workflows.
 
-> Status: 0.2.0, not yet published to npm. See [Publishing](#publishing).
+> Status: published on npm as `n8n-nodes-batchdata` 0.2.1. To appear in n8n as a verified community node, the package still needs to be submitted through the [n8n Creator Portal](https://creators.n8n.io/nodes). See [Publishing](#publishing).
 
 ## Install
 
@@ -10,7 +10,7 @@ In n8n, go to **Settings > Community Nodes > Install** and enter `n8n-nodes-batc
 
 ## Credentials
 
-Create a **BatchData API** credential and paste your API token (the same token you use as `Authorization: Bearer <token>`). Tokens are created in your BatchData account.
+Create a **BatchData API** credential and paste your API token (the same token you use as `Authorization: Bearer <token>`). Tokens are created in your BatchData account. API reference: [developer.batchdata.com](https://developer.batchdata.com).
 
 **Test button.** The test posts an empty batch to `POST /api/v1/address/verify`. A valid token gets HTTP 400 (empty batch, treated as success). An invalid token gets 401 or 403 (shown as an error). The 400 is rejected before any lookup, so no address is processed. Billing for rejected requests is assumed, not confirmed in the API spec.
 
@@ -108,7 +108,7 @@ Tests run the node against a fake n8n context with response fixtures built from 
 
 ## Publishing
 
-n8n requires community nodes to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (`0.2.0`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. To list the node in n8n's verified catalog, submit it through the [n8n Creator Portal](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/) after publishing.
+n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (`0.2.1`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
 
 ## Support
 
@@ -116,8 +116,4 @@ support@batchservice.com
 
 ## License
 
-[MIT](LICENSE)
-
-## License
-
-The code in this repository is released under the MIT License (see `LICENSE`). The BatchData API and the data it returns are proprietary to BatchData (batchdata.io) and are subject to BatchData's terms of service; the MIT License does not cover them. Support: support@batchservice.com
+The code in this repository is released under the [MIT License](LICENSE). The BatchData API and the data it returns are proprietary to BatchData ([batchdata.io](https://batchdata.io)) and are subject to BatchData's terms of service; the MIT License does not cover them. Support: support@batchservice.com

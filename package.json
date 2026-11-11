@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-batchdata",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "n8n community nodes for the BatchData API: property search and lookup, skip trace, reverse skip trace, permits, investors, address and phone checks, search sessions, property monitors, polling and instant triggers",
   "license": "MIT",
   "homepage": "https://github.com/batchdataco/n8n-nodes-batchdata#readme",

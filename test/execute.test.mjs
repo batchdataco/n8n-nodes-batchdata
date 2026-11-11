@@ -292,7 +292,7 @@ test('custom call: sends body, strips webhook fields, GET drops body', async () 
 	assert.equal(get.calls[0].body, undefined);
 });
 
-test('errors: 401, 429 and 500 surface with the right message; continueOnFail keeps going', async () => {
+test('errors: 401, 402, 429 and 500 surface with the right message; continueOnFail keeps going', async () => {
 	const body401 = { status: { code: 401, text: 'Unauthorized', message: 'Invalid token' } };
 	await assert.rejects(
 		runNode({
@@ -311,6 +311,13 @@ test('errors: 401, 429 and 500 surface with the right message; continueOnFail ke
 			responses: [httpError(429, {})],
 		}),
 		(error) => /rate limit/i.test(error.description),
+	);
+	await assert.rejects(
+		runNode({
+			params: [{ resource: 'phone', operation: 'dnc', phoneNumbers: '2024561111' }],
+			responses: [httpError(402, {})],
+		}),
+		(error) => error.httpCode === '402' && /balance/i.test(error.description),
 	);
 	await assert.rejects(
 		runNode({
