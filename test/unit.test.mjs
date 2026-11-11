@@ -19,9 +19,9 @@ test('credential probe: 400 and 2xx are valid; 401/403 are not', () => {
 test('credential test method posts an empty batch with the bearer token', async () => {
 	const node = new BatchData();
 	const seen = [];
-	const make = (statusCode) => ({
+	const make = (statusCode, helper = 'httpRequest') => ({
 		helpers: {
-			request: async (options) => {
+			[helper]: async (options) => {
 				seen.push(options);
 				return { statusCode };
 			},
@@ -30,13 +30,20 @@ test('credential test method posts an empty batch with the bearer token', async 
 	const credential = { data: { apiToken: ' secret-token ' } };
 	const ok = await node.methods.credentialTest.batchDataApiTest.call(make(400), credential);
 	assert.equal(ok.status, 'OK');
-	assert.equal(seen[0].uri, 'https://api.batchdata.com/api/v1/address/verify');
+	assert.equal(seen[0].url, 'https://api.batchdata.com/api/v1/address/verify');
 	assert.deepEqual(seen[0].body, { requests: [] });
 	assert.equal(seen[0].headers.Authorization, 'Bearer secret-token');
 	const bad = await node.methods.credentialTest.batchDataApiTest.call(make(401), credential);
 	assert.equal(bad.status, 'Error');
 	const empty = await node.methods.credentialTest.batchDataApiTest.call(make(200), { data: {} });
 	assert.equal(empty.status, 'Error');
+	seen.length = 0;
+	const legacy = await node.methods.credentialTest.batchDataApiTest.call(
+		make(400, 'request'),
+		credential,
+	);
+	assert.equal(legacy.status, 'OK');
+	assert.equal(seen[0].uri, 'https://api.batchdata.com/api/v1/address/verify');
 });
 
 test('credential injects a Bearer header and declares a password field', () => {

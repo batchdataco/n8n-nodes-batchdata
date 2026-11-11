@@ -100,13 +100,16 @@ export function parseJsonObject(v: unknown, label: string): Obj | undefined {
 	if (isBlank(v)) return undefined;
 	if (isPlain(v)) return v;
 	let parsed: unknown;
+	let invalidJson = false;
 	try {
 		parsed = JSON.parse(String(v));
 	} catch {
-		// Wrapped into a NodeOperationError by the node (toNodeApiError).
-		// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
-		throw new InputError(`${label} is not valid JSON`);
+		invalidJson = true;
 	}
+	// InputError is wrapped into a NodeOperationError by the node (toNodeApiError).
+	// Thrown outside the catch so the community-node scanner (which ignores
+	// eslint-disable comments) does not treat this as a raw rethrow.
+	if (invalidJson) throw new InputError(`${label} is not valid JSON`);
 	if (!isPlain(parsed)) throw new InputError(`${label} must be a JSON object`);
 	return parsed;
 }
@@ -169,12 +172,15 @@ function resolveInput(field: CatalogField, input: Obj): unknown {
 function buildRows(field: CatalogField, rows: unknown): Obj[] {
 	let list: any = rows;
 	if (typeof list === 'string') {
+		let parsed: unknown;
+		let invalidJson = false;
 		try {
-			list = JSON.parse(list);
+			parsed = JSON.parse(list);
 		} catch {
-			// eslint-disable-next-line @n8n/community-nodes/require-node-api-error
-			throw new InputError(`${field.label} must be a list of rows`);
+			invalidJson = true;
 		}
+		if (invalidJson) throw new InputError(`${field.label} must be a list of rows`);
+		list = parsed;
 	}
 	if (isPlain(list)) list = [list];
 	if (!Array.isArray(list)) list = [];

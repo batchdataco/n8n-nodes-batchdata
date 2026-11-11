@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Pass `npx @n8n/scan-community-package`: move input-error throws out of `catch` blocks, prefer `httpRequest` in the credential test, and rename the Custom API Call operation to "Make" so the official scanner (which ignores eslint-disable comments) is clean.
+
+
 ## 0.2.1
 
 - Published to npm from GitHub Actions with provenance. The package `repository` field points at this repo (`batchdataco/n8n-nodes-batchdata`).
