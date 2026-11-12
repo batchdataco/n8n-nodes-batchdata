@@ -11,7 +11,6 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { collectInputWith } from '../BatchData/catalogExecute';
 import { buildRequest, getPath, setPath, toBoolean } from '../BatchData/catalogEngine';
 import { catalog, opProperties } from '../BatchData/catalogProperties';
-import { credentialTestMethods } from '../BatchData/credentialMethods';
 import { batchDataRequest, toNodeApiError } from '../BatchData/GenericFunctions';
 import { eventRecord, rememberIds, subscriptionIdFrom } from '../BatchData/triggerSupport';
 
@@ -30,7 +29,7 @@ export class BatchDataMonitorTrigger implements INodeType {
 		defaults: { name: 'BatchData Monitor Trigger' },
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
-		credentials: [{ name: 'batchDataApi', required: true, testedBy: 'batchDataApiTest' }],
+		credentials: [{ name: 'batchDataApi', required: true }],
 		webhooks: [
 			{
 				name: 'default',
@@ -49,8 +48,6 @@ export class BatchDataMonitorTrigger implements INodeType {
 			...opProperties(op, null),
 		],
 	};
-
-	methods = { credentialTest: credentialTestMethods };
 
 	webhookMethods = {
 		default: {

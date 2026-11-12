@@ -10,7 +10,6 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { collectInputWith } from '../BatchData/catalogExecute';
 import { buildRequest, extractResult } from '../BatchData/catalogEngine';
 import { catalog, opProperties } from '../BatchData/catalogProperties';
-import { credentialTestMethods } from '../BatchData/credentialMethods';
 import { batchDataRequest, toNodeApiError } from '../BatchData/GenericFunctions';
 import { pollRecords, recordId, rememberIds } from '../BatchData/triggerSupport';
 
@@ -30,7 +29,7 @@ export class BatchDataTrigger implements INodeType {
 		polling: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
-		credentials: [{ name: 'batchDataApi', required: true, testedBy: 'batchDataApiTest' }],
+		credentials: [{ name: 'batchDataApi', required: true }],
 		properties: [
 			{
 				displayName: 'Event',
@@ -47,8 +46,6 @@ export class BatchDataTrigger implements INodeType {
 			...pollingOps.flatMap((op) => opProperties(op, { event: [op.key] })),
 		],
 	};
-
-	methods = { credentialTest: credentialTestMethods };
 
 	async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
 		const event = this.getNodeParameter('event') as string;

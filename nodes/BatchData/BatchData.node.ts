@@ -28,7 +28,6 @@ import {
 	RESOURCE_VALUE,
 } from './catalogProperties';
 import { API_HOST } from './constants';
-import { credentialTestMethods } from './credentialMethods';
 import {
 	addressFields,
 	addressOperations,
@@ -107,7 +106,6 @@ export class BatchData implements INodeType {
 			{
 				name: 'batchDataApi',
 				required: true,
-				testedBy: 'batchDataApiTest',
 			},
 		],
 		properties: [
@@ -153,7 +151,6 @@ export class BatchData implements INodeType {
 				return await listForDropdown(this, '/api/v2/property-subscription', 'subscriptions');
 			},
 		},
-		credentialTest: credentialTestMethods,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

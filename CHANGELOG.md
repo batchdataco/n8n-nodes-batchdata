@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Add a credential test to the BatchData API credential (n8n Creator Portal review: "missing credential test"). It sends `GET /api/v2/property/search-sessions?take=1` with the Bearer token from `authenticate`: a valid token returns 200 and a bad token returns 401. The call is read-only and does not bill property records. 401, 403 and 429 get clear messages.
+- Remove the node-level `testedBy` credential test methods, so the credential's own test is the single check for every node and the HTTP Request node.
+
+
 ## 0.2.2
 
 - Pass `npx @n8n/scan-community-package`: move input-error throws out of `catch` blocks, prefer `httpRequest` in the credential test, and rename the Custom API Call operation to "Make" so the official scanner (which ignores eslint-disable comments) is clean.

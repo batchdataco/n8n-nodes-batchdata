@@ -3,47 +3,39 @@ import { test } from 'node:test';
 
 import { BatchData } from '../dist/nodes/BatchData/BatchData.node.js';
 import { BatchDataApi } from '../dist/credentials/BatchDataApi.credentials.js';
-import { evaluateCredentialProbe } from '../dist/nodes/BatchData/credentialTest.js';
 import { QUICKLISTS } from '../dist/nodes/BatchData/constants.js';
 
-test('credential probe: 400 and 2xx are valid; 401/403 are not', () => {
-	assert.equal(evaluateCredentialProbe(400).status, 'OK');
-	assert.equal(evaluateCredentialProbe(200).status, 'OK');
-	assert.equal(evaluateCredentialProbe(401).status, 'Error');
-	assert.equal(evaluateCredentialProbe(403).status, 'Error');
-	assert.equal(evaluateCredentialProbe(429).status, 'Error');
-	assert.equal(evaluateCredentialProbe(500).status, 'Error');
-	assert.equal(evaluateCredentialProbe(0).status, 'Error');
+test('credential defines a free test request: GET search sessions, one result', () => {
+	const { test: credTest } = new BatchDataApi();
+	assert.ok(credTest, 'credential has a test');
+	const { request } = credTest;
+	assert.equal(request.method, 'GET');
+	assert.equal(
+		`${request.baseURL}${request.url}`,
+		'https://api.batchdata.com/api/v2/property/search-sessions',
+	);
+	assert.deepEqual(request.qs, { take: 1 });
+	assert.equal(request.body, undefined);
+	// Auth comes from `authenticate`, not a hard-coded header on the test request.
+	assert.equal(request.headers?.Authorization, undefined);
+	const codes = credTest.rules
+		.filter((r) => r.type === 'responseCode')
+		.map((r) => r.properties.value);
+	assert.deepEqual(codes.sort(), [401, 403, 429]);
 });
 
-test('credential test method posts an empty batch with the bearer token', async () => {
-	const node = new BatchData();
-	const seen = [];
-	const make = (statusCode, helper = 'httpRequest') => ({
-		helpers: {
-			[helper]: async (options) => {
-				seen.push(options);
-				return { statusCode };
-			},
-		},
-	});
-	const credential = { data: { apiToken: ' secret-token ' } };
-	const ok = await node.methods.credentialTest.batchDataApiTest.call(make(400), credential);
-	assert.equal(ok.status, 'OK');
-	assert.equal(seen[0].url, 'https://api.batchdata.com/api/v1/address/verify');
-	assert.deepEqual(seen[0].body, { requests: [] });
-	assert.equal(seen[0].headers.Authorization, 'Bearer secret-token');
-	const bad = await node.methods.credentialTest.batchDataApiTest.call(make(401), credential);
-	assert.equal(bad.status, 'Error');
-	const empty = await node.methods.credentialTest.batchDataApiTest.call(make(200), { data: {} });
-	assert.equal(empty.status, 'Error');
-	seen.length = 0;
-	const legacy = await node.methods.credentialTest.batchDataApiTest.call(
-		make(400, 'request'),
-		credential,
+test('nodes rely on the credential test, not a node-level testedBy method', async () => {
+	const { BatchDataTrigger } = await import(
+		'../dist/nodes/BatchDataTrigger/BatchDataTrigger.node.js'
 	);
-	assert.equal(legacy.status, 'OK');
-	assert.equal(seen[0].uri, 'https://api.batchdata.com/api/v1/address/verify');
+	const { BatchDataMonitorTrigger } = await import(
+		'../dist/nodes/BatchDataMonitorTrigger/BatchDataMonitorTrigger.node.js'
+	);
+	for (const node of [new BatchData(), new BatchDataTrigger(), new BatchDataMonitorTrigger()]) {
+		assert.equal(node.description.credentials[0].name, 'batchDataApi');
+		assert.equal(node.description.credentials[0].testedBy, undefined);
+		assert.equal(node.methods?.credentialTest, undefined);
+	}
 });
 
 test('credential injects a Bearer header and declares a password field', () => {
@@ -74,7 +66,6 @@ test('node description exposes the planned resources and no wallet or webhook fi
 		names.some((n) => n.includes('webhook') || n.includes('callback')),
 		false,
 	);
-	assert.equal(description.credentials[0].testedBy, 'batchDataApiTest');
 });
 
 test('quicklist constants have no duplicates', () => {
