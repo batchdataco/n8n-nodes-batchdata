@@ -409,9 +409,9 @@ test('row-level Your Reference ID reaches the request in batch modules', async (
 	}
 });
 
-test('package metadata points at this GitHub repo and is a 0.2.2 release', () => {
+test('package metadata points at this GitHub repo and is a 0.2.3 release', () => {
 	const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-	assert.equal(pkg.version, '0.2.2');
+	assert.equal(pkg.version, '0.2.3');
 	assert.equal(pkg.repository.url, 'git+https://github.com/batchdataco/n8n-nodes-batchdata.git');
 	assert.match(pkg.homepage, /github\.com\/batchdataco\/n8n-nodes-batchdata/);
 	assert.ok(pkg.keywords.includes('n8n-community-node-package'));
