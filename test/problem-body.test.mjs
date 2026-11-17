@@ -1,0 +1,122 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import { fixture, runNode } from './helpers.mjs';
+
+const PRISM_PROBLEM = {
+	type: 'https://stoplight.io/prism/errors#INVALID_API_RESPONSE',
+	title: 'Invalid response',
+	status: 500,
+	detail: 'Request responded with status code 500',
+};
+
+const addressVerify = (extra = {}) => ({
+	resource: 'address',
+	operation: 'verify',
+	street: '2800 N 24th St',
+	city: 'Phoenix',
+	state: 'AZ',
+	...extra,
+});
+
+test('a 2xx problem body with a numeric status fails the run with its detail', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify()],
+			responses: [PRISM_PROBLEM],
+		}),
+		(err) => /Request responded with status code 500/.test(err.message) && /500/.test(err.message),
+	);
+});
+
+test('a 2xx problem body that names its error under name fails the run with its detail', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify()],
+			responses: [
+				{
+					name: 'https://stoplight.io/prism/errors#INVALID_API_RESPONSE',
+					status: 500,
+					detail: 'Request responded with status code 500',
+				},
+			],
+		}),
+		(err) => /Request responded with status code 500/.test(err.message),
+	);
+});
+
+test('an RFC 7807 problem body without a numeric status fails the run with its detail', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify()],
+			responses: [{ type: 'about:blank', title: 'Bad Gateway', detail: 'Upstream timed out' }],
+		}),
+		(err) => /Upstream timed out/.test(err.message),
+	);
+});
+
+test('continueOnFail turns a 2xx problem body into one error item', async () => {
+	const { output } = await runNode({
+		continueOnFail: true,
+		params: [addressVerify()],
+		responses: [PRISM_PROBLEM],
+	});
+	assert.equal(output.length, 1);
+	assert.match(output[0].json.error, /Request responded with status code 500/);
+});
+
+test('a catalog operation fails the run on a 2xx problem body', async () => {
+	await assert.rejects(
+		runNode({
+			params: [
+				{
+					resource: 'property',
+					operation: 'batch_skip_trace',
+					batch_skip_trace_properties: { rows: [{ street: '1 A St', city: 'X', state: 'AZ' }] },
+				},
+			],
+			responses: [PRISM_PROBLEM],
+		}),
+		(err) => /Request responded with status code 500/.test(err.message),
+	);
+});
+
+test('an empty address result still returns no items', async () => {
+	const { output } = await runNode({
+		params: [addressVerify()],
+		responses: [{ status: { code: 200, text: 'OK' }, results: { addresses: [] } }],
+	});
+	assert.equal(output.length, 0);
+});
+
+test('a normal address verify response returns one item per address', async () => {
+	const { output } = await runNode({
+		params: [addressVerify()],
+		responses: [fixture('address-verify')],
+	});
+	assert.equal(output.length, fixture('address-verify').results.addresses.length);
+});
+
+test('a numeric status beside a results container does not fail the run', async () => {
+	const { output } = await runNode({
+		params: [addressVerify()],
+		responses: [{ status: 500, results: { addresses: [] } }],
+	});
+	assert.equal(output.length, 0);
+});
+
+test('a message-only custom call response does not fail the run', async () => {
+	const { output } = await runNode({
+		params: [
+			{
+				resource: 'customApiCall',
+				operation: 'request',
+				method: 'DELETE',
+				path: '/api/v2/property/search-sessions/abc',
+			},
+		],
+		responses: [{ message: 'Subscription deleted' }],
+	});
+	assert.equal(output.length, 1);
+	assert.deepEqual(output[0].json, { message: 'Subscription deleted' });
+});

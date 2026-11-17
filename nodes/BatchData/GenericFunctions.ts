@@ -135,6 +135,38 @@ export type HttpContext =
 	| IHookFunctions
 	| IWebhookFunctions;
 
+export interface ProblemBody {
+	message: string;
+	httpCode?: string;
+}
+
+/**
+ * Detects an error object returned with a 2xx status, such as a gateway problem body.
+ * A body that carries `results` or `result` is never treated as an error.
+ */
+export function findProblemInBody(body: unknown): ProblemBody | undefined {
+	if (!isPlainObject(body)) return undefined;
+	if ('results' in body || 'result' in body) return undefined;
+
+	const numericStatus =
+		typeof body.status === 'number' && Number.isFinite(body.status) && body.status >= 400
+			? body.status
+			: undefined;
+	const isRfc7807 =
+		typeof body.detail === 'string' &&
+		(typeof body.title === 'string' || typeof body.type === 'string' || typeof body.name === 'string');
+	if (numericStatus === undefined && !isRfc7807) return undefined;
+
+	const detail = [body.detail, body.message, body.title].find(
+		(value): value is string => typeof value === 'string' && value.trim().length > 0,
+	);
+	const statusSuffix = numericStatus !== undefined ? ` (${numericStatus})` : '';
+	return {
+		message: `BatchData returned an error inside a 2xx response${statusSuffix}: ${detail ?? 'no detail given'}`,
+		httpCode: numericStatus !== undefined ? String(numericStatus) : undefined,
+	};
+}
+
 export async function batchDataRequest(
 	this: HttpContext,
 	method: IHttpRequestMethods,
@@ -152,11 +184,22 @@ export async function batchDataRequest(
 	if (qs !== undefined && Object.keys(qs).length > 0) options.qs = qs;
 
 	const helpers = this.helpers as IExecuteFunctions['helpers'];
-	return (await helpers.httpRequestWithAuthentication.call(
+	const response = (await helpers.httpRequestWithAuthentication.call(
 		this as IExecuteFunctions,
 		'batchDataApi',
 		options,
 	)) as IDataObject;
+
+	const problem = findProblemInBody(response);
+	if (problem) {
+		throw new NodeApiError(this.getNode(), response as JsonObject, {
+			message: problem.message,
+			httpCode: problem.httpCode,
+			description:
+				'The API answered with success but the body is an error object, so no results were returned.',
+		});
+	}
+	return response;
 }
 
 interface ErrorLike {
