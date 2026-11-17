@@ -2,7 +2,7 @@
 
 Three [n8n](https://n8n.io) community nodes for the [BatchData](https://batchdata.io) API: **BatchData** (actions), **BatchData Trigger** (polling) and **BatchData Monitor Trigger** (instant). Search properties, pull full property data, find owner contacts, check permits, find investors, verify addresses and phones, run search sessions and monitor properties inside your workflows.
 
-> Status: published on npm as `n8n-nodes-batchdata` 0.2.2. To appear in n8n as a verified community node, the package still needs to be submitted through the [n8n Creator Portal](https://creators.n8n.io/nodes). See [Publishing](#publishing).
+> Status: published on npm as `n8n-nodes-batchdata` and submitted to the [n8n Creator Portal](https://creators.n8n.io/nodes) for verification. See [Publishing](#publishing).
 
 ## Install
 
@@ -53,6 +53,20 @@ Phone results are a point-in-time answer. Re-check before each campaign. You are
 ### Custom API Call
 
 Calls any path under `https://api.batchdata.com/api/`. The host is fixed and the token is added from your credential. Wallet endpoints are blocked, and `webhookUrl` / `errorWebhookUrl` are removed from the body because webhook delivery only applies to asynchronous requests, which this node does not support.
+
+## Use as an AI Agent tool
+
+The BatchData node has `usableAsTool` set. Connect it to the **Tool** input of an **AI Agent** node.
+
+1. Pick the resource and operation, for example Address > Verify.
+2. For each field the model must fill, click the sparkle button "Let the model define this parameter". n8n then writes a `$fromAI()` expression, such as `{{ $fromAI('street', 'Street address', 'string') }}`.
+3. Give the tool a clear description so the model knows when to call it.
+
+A BatchData sandbox token returns mock data and does not bill your account. Test the agent with a sandbox token first.
+
+If the API answers with an error object, the tool returns an error to the agent, not an empty result.
+
+See [examples/ai-agent-address-tool.workflow.json](examples/ai-agent-address-tool.workflow.json). Import it with **Workflows > Import from File**, then pick a chat model and your BatchData credential.
 
 ## Added in 0.2.0
 
@@ -108,7 +122,7 @@ Tests run the node against a fake n8n context with response fixtures built from 
 
 ## Publishing
 
-n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (`0.2.2`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
+n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (for example `0.2.4`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
 
 ## Support
 
