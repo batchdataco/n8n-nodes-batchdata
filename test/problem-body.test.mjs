@@ -55,6 +55,54 @@ test('an RFC 7807 problem body without a numeric status fails the run with its d
 	);
 });
 
+test('a custom API call returns a body that has a type, title and detail without failing', async () => {
+	const body = {
+		id: 'abc',
+		name: 'Downtown watch',
+		type: 'property',
+		title: 'Watch',
+		detail: 'Active since 2026-01-02',
+	};
+	const { output } = await runNode({
+		params: [
+			{
+				resource: 'customApiCall',
+				operation: 'request',
+				method: 'GET',
+				path: '/api/v2/property/search-sessions/abc',
+			},
+		],
+		responses: [body],
+	});
+	assert.equal(output.length, 1);
+	assert.deepEqual(output[0].json, body);
+});
+
+test('an address verify problem body with null results fails the run with its detail', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify()],
+			responses: [
+				{ status: 500, detail: 'Request responded with status code 500', results: null },
+			],
+		}),
+		(err) => err.message.includes('Request responded with status code 500'),
+	);
+});
+
+test('a failing item in a multi-item run reports its item index', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify(), addressVerify({ street: '1 Main St' })],
+			responses: [
+				fixture('address-verify'),
+				{ status: 500, detail: 'Request responded with status code 500' },
+			],
+		}),
+		(err) => err.context.itemIndex === 1,
+	);
+});
+
 test('continueOnFail turns a 2xx problem body into one error item', async () => {
 	const { output } = await runNode({
 		continueOnFail: true,

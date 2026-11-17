@@ -140,21 +140,21 @@ export interface ProblemBody {
 	httpCode?: string;
 }
 
-/**
- * Detects an error object returned with a 2xx status, such as a gateway problem body.
- * A body that carries `results` or `result` is never treated as an error.
- */
 export function findProblemInBody(body: unknown): ProblemBody | undefined {
 	if (!isPlainObject(body)) return undefined;
-	if ('results' in body || 'result' in body) return undefined;
+	if (body.results !== undefined && body.results !== null) return undefined;
+	if (body.result !== undefined && body.result !== null) return undefined;
 
 	const numericStatus =
 		typeof body.status === 'number' && Number.isFinite(body.status) && body.status >= 400
 			? body.status
 			: undefined;
+	const problemType = [body.type, body.name].find((value): value is string => typeof value === 'string');
 	const isRfc7807 =
 		typeof body.detail === 'string' &&
-		(typeof body.title === 'string' || typeof body.type === 'string' || typeof body.name === 'string');
+		typeof body.title === 'string' &&
+		problemType !== undefined &&
+		(problemType === 'about:blank' || /^https?:\/\//i.test(problemType));
 	if (numericStatus === undefined && !isRfc7807) return undefined;
 
 	const detail = [body.detail, body.message, body.title].find(
@@ -258,7 +258,12 @@ export function toNodeApiError(
 	error: unknown,
 	itemIndex: number,
 ): NodeApiError | NodeOperationError {
-	if (error instanceof NodeOperationError || error instanceof NodeApiError) return error;
+	if (error instanceof NodeOperationError || error instanceof NodeApiError) {
+		if (error.context.itemIndex === undefined) {
+			error.context.itemIndex = itemIndex;
+		}
+		return error;
+	}
 	const { message, httpCode } = extractApiError(error);
 	if (httpCode === undefined) {
 		return new NodeOperationError(context.getNode(), message, { itemIndex });
