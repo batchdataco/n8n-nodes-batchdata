@@ -1,64 +1,38 @@
 # Publishes this n8n community node package to npm on every version tag push.
 #
-# Starting May 1 2026, n8n requires all community nodes to be published via
-# GitHub Actions with npm provenance statements. This workflow satisfies that
-# requirement. Provenance lets anyone cryptographically verify that a package
-# was built by this exact workflow, from this exact repository and commit.
+# This repo is the canonical npm publish source for n8n-nodes-batchdata.
+# Development happens in the private monorepo batchdataco/batchdata-integrations
+# under apps/n8n; releases are synced here and tagged here.
 #
-# ─── PREREQUISITES ─────────────────────────────────────────────────────────────
-#
-# @n8n/node-cli ≥ 0.23.0 is required. Earlier versions do not support the
-# provenance flag passed by `npm run release` in CI, and the publish step will
-# fail. Check the version installed in this project with:
-#
-#   npm list @n8n/node-cli
-#
-# To upgrade, add @n8n/node-cli@latest as a dev dependency using your package manager.
+# n8n requires community nodes to be published from GitHub Actions with npm
+# provenance. This workflow publishes ONLY through npm OIDC Trusted Publishing.
+# There is no NPM_TOKEN fallback: no long-lived npm secret is used.
 #
 # ─── ONE-TIME SETUP ────────────────────────────────────────────────────────────
 #
-# Option A — OIDC Trusted Publishing (recommended, no long-lived secrets):
-#   1. Log in to npmjs.com and open your package's settings.
-#   2. Under "Publish access" → "Trusted Publishers", click "Add a publisher".
-#   3. Select GitHub Actions and fill in:
-#        Repository owner: <your-github-username-or-org>
-#        Repository name:  <your-repo-name>
-#        Workflow name:    publish.yml
-#        Environment:      (leave blank unless you use GitHub Environments)
-#   4. Leave the NPM_TOKEN secret unset in this repository. GitHub's OIDC
-#      token is used instead — no secret ever touches your repo settings.
+# On npmjs.com, package n8n-nodes-batchdata → Settings → Trusted Publishers,
+# add a GitHub Actions publisher:
+#   Repository owner: batchdataco
+#   Repository name:  n8n-nodes-batchdata
+#   Workflow name:    publish.yml
+#   Environment:      (none)
 #
-# Option B — npm Automation Token (fallback):
-#   1. On npmjs.com: Access Tokens → Generate New Token → Granular Access Token.
-#      Scope it to this package with "Read and write" publish permission.
-#   2. In GitHub: Settings → Secrets and variables → Actions → New secret.
-#      Name it NPM_TOKEN and paste the token value.
+# Before merging: confirm the Trusted Publisher is configured on npmjs.com,
+# then delete the NPM_TOKEN repo secret.
 #
-# Both options work with --provenance. Provenance is signed by GitHub's OIDC
-# infrastructure regardless of how npm authentication is handled.
+# Requirements: npm >= 11.5.1 (checked below) and @n8n/node-cli >= 0.23.0.
+# In CI, `npm run release` (n8n-node release) runs lint and build, then
+# `npm publish` with NPM_CONFIG_PROVENANCE=true.
 #
 # ─── TAG CONVENTION ────────────────────────────────────────────────────────────
 #
 # This workflow triggers on tags matching "*.*.*" (e.g. 0.2.0).
-# If you prefer tags with a "v" prefix (e.g. v0.2.0), change the filter to:
-#   tags: ['v*.*.*']
-#
-# ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
-#
-# Run the following command locally to start an interactive release:
-#
-#   npm run release
-#
-# This will lint, build, prompt for a version bump, update the changelog,
-# commit, tag, and push — which triggers this workflow to publish to npm.
 
 name: Publish
 
 on:
   push:
     tags:
-      # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
-      # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
       - '*.*.*'
 
 jobs:
@@ -67,9 +41,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      # Required to mint an OIDC token for npm provenance attestation.
       id-token: write
-      # Scoped down from the default (write) for least-privilege publishing.
       contents: read
 
     steps:
@@ -81,19 +53,17 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
+      - name: Check npm version for OIDC trusted publishing
+        run: |
+          v="$(npm --version)"
+          echo "npm $v"
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); process.exit(a > 11 || (a === 11 && (b > 5 || (b === 5 && c >= 1))) ? 0 : 1)' "$v" \
+            || { echo "::error::npm >= 11.5.1 is required for OIDC trusted publishing (found $v)"; exit 1; }
+
       - name: Install dependencies
         run: 'npm ci'
 
       - name: Release
-        # Publishes to npm with a provenance attestation (requires id-token: write above).
-        # Lint and build run automatically as part of the release process.
-        #
-        # Option A (OIDC): leave NPM_TOKEN unset — the token step is skipped and
-        #   npm uses the OIDC exchange instead.
-        # Option B (token): set NPM_TOKEN in repo secrets — it is written to
-        #   .npmrc here before publishing.
-        run: |
-          [ -n "$NPM_TOKEN" ] && npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm run release
+        run: 'npm run release'
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'

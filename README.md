@@ -108,7 +108,11 @@ Tests run the node against a fake n8n context with response fixtures built from 
 
 ## Publishing
 
-n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (`0.2.2`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
+n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` publishes on a version tag (for example `0.2.3`) through npm OIDC Trusted Publishing only, with no `NPM_TOKEN` fallback. The setup is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
+
+### Releasing
+
+This repo is the canonical npm publish source for n8n-nodes-batchdata. Development happens in the private monorepo batchdataco/batchdata-integrations under apps/n8n; releases are synced here and tagged here.
 
 ## Support
 
