@@ -148,7 +148,7 @@ Tests run the node against a fake n8n context with response fixtures built from 
 
 ## Publishing
 
-n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (for example `0.2.4`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
+n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (for example `0.2.4`) through npm OIDC Trusted Publishing only. There is no `NPM_TOKEN` fallback and no long-lived npm secret. Before the first publish, configure a Trusted Publisher on npmjs.com for package `n8n-nodes-batchdata` (repository owner `batchdataco`, repository name `n8n-nodes-batchdata`, workflow `publish.yml`). Setup is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
 
 ## Support
 
