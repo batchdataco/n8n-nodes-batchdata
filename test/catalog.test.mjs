@@ -10,11 +10,10 @@ import { BatchDataTrigger } from '../dist/nodes/BatchDataTrigger/BatchDataTrigge
 import { BatchDataMonitorTrigger } from '../dist/nodes/BatchDataMonitorTrigger/BatchDataMonitorTrigger.node.js';
 import * as engine from '../dist/nodes/BatchData/catalogEngine.js';
 import { catalog } from '../dist/nodes/BatchData/catalogProperties.js';
-import { httpError, runNode } from './helpers.mjs';
+import { hookContext, httpError, pollContext, runNode } from './helpers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const node = { id: 't', name: 'BatchData', type: 'x', typeVersion: 1, position: [0, 0], parameters: {} };
 
 test('vendored catalog matches its recorded hash (drift check against shared/catalog.json)', () => {
 	const raw = readFileSync(join(root, 'nodes/BatchData/catalog.json'), 'utf8');
@@ -219,29 +218,6 @@ test('Custom API Call blocks wallet, async, monitor creation and strips callback
 
 // ---- triggers -------------------------------------------------------------------------------
 
-function pollContext({ event, params = {}, mode = 'trigger', responses, staticData = {} }) {
-	const calls = [];
-	let n = 0;
-	const context = {
-		getNode: () => node,
-		getMode: () => mode,
-		getWorkflowStaticData: () => staticData,
-		getNodeParameter: (name, fallback) => {
-			if (name === 'event') return event;
-			if (name in params) return params[name];
-			if (fallback !== undefined) return fallback;
-			throw new Error(`Missing ${name}`);
-		},
-		helpers: {
-			httpRequestWithAuthentication: async (credentialType, options) => {
-				calls.push({ credentialType, ...options });
-				return responses[n++];
-			},
-		},
-	};
-	return { context, calls, staticData };
-}
-
 test('polling trigger: first run is a baseline for lists, later runs emit only new records', async () => {
 	const first = pollContext({
 		event: 'new_search_session',
@@ -273,31 +249,6 @@ test('polling trigger: a billed session drain does not bill during a manual test
 	assert.deepEqual(items[0].map((i) => i.json.id), ['p1', 'p2']);
 	assert.equal(live.calls[0].body.options.useCursorPagination, true);
 });
-
-function hookContext({ params = {}, staticData = {}, responses = [], body = {} }) {
-	const calls = [];
-	let n = 0;
-	const context = {
-		getNode: () => node,
-		getWorkflowStaticData: () => staticData,
-		getNodeWebhookUrl: () => 'https://n8n.example.com/webhook/abc/batchdata-monitor',
-		getBodyData: () => body,
-		getNodeParameter: (name, fallback) => {
-			if (name in params) return params[name];
-			if (fallback !== undefined) return fallback;
-			throw new Error(`Missing ${name}`);
-		},
-		helpers: {
-			httpRequestWithAuthentication: async (credentialType, options) => {
-				calls.push({ credentialType, ...options });
-				const next = responses[n++];
-				if (next instanceof Error) throw next;
-				return next;
-			},
-		},
-	};
-	return { context, calls, staticData };
-}
 
 test('monitor trigger: create points the monitor at the node webhook, delete removes it', async () => {
 	const trigger = new BatchDataMonitorTrigger();
@@ -409,10 +360,11 @@ test('row-level Your Reference ID reaches the request in batch modules', async (
 	}
 });
 
-test('package metadata points at this GitHub repo and is a 0.2.4 release', () => {
+test('package metadata points at the public n8n-nodes-batchdata repo and is a 0.2.4 release', () => {
 	const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 	assert.equal(pkg.version, '0.2.4');
 	assert.equal(pkg.repository.url, 'git+https://github.com/batchdataco/n8n-nodes-batchdata.git');
+	assert.equal(pkg.repository.directory, undefined);
 	assert.match(pkg.homepage, /github\.com\/batchdataco\/n8n-nodes-batchdata/);
 	assert.ok(pkg.keywords.includes('n8n-community-node-package'));
 	assert.equal(pkg.license, 'MIT');
