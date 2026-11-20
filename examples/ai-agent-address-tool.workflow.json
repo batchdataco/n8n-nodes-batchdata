@@ -1,0 +1,95 @@
+{
+  "name": "AI Agent: verify a US address with BatchData",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6f1c2a10-3b7e-4c8d-9a21-0e5d7b4f1a01",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [-520, 300]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You verify US postal addresses. When the user gives an address, call the Verify address tool with street, city, state and zip, then report the standardized address. If the tool returns an error, say so. Do not invent an address."
+        }
+      },
+      "id": "6f1c2a10-3b7e-4c8d-9a21-0e5d7b4f1a02",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [-240, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6f1c2a10-3b7e-4c8d-9a21-0e5d7b4f1a03",
+      "name": "Chat Model (pick one)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [-240, 520],
+      "notes": "Placeholder. Replace with any chat model node and select your own credential.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Verify and standardize a US postal address. Input: street, city, state, zip.",
+        "resource": "address",
+        "operation": "verify",
+        "street": "={{ $fromAI('street', 'Street line of the address', 'string') }}",
+        "city": "={{ $fromAI('city', 'City', 'string') }}",
+        "state": "={{ $fromAI('state', 'Two-letter US state code', 'string') }}",
+        "zip": "={{ $fromAI('zip', 'ZIP code, empty if unknown', 'string') }}"
+      },
+      "id": "6f1c2a10-3b7e-4c8d-9a21-0e5d7b4f1a04",
+      "name": "Verify address",
+      "type": "n8n-nodes-batchdata.batchDataTool",
+      "typeVersion": 1,
+      "position": [-240, 80]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Model (pick one)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify address": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
