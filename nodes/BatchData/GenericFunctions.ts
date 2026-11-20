@@ -135,6 +135,38 @@ export type HttpContext =
 	| IHookFunctions
 	| IWebhookFunctions;
 
+export interface ProblemBody {
+	message: string;
+	httpCode?: string;
+}
+
+export function findProblemInBody(body: unknown): ProblemBody | undefined {
+	if (!isPlainObject(body)) return undefined;
+	if (body.results !== undefined && body.results !== null) return undefined;
+	if (body.result !== undefined && body.result !== null) return undefined;
+
+	const numericStatus =
+		typeof body.status === 'number' && Number.isFinite(body.status) && body.status >= 400
+			? body.status
+			: undefined;
+	const problemType = [body.type, body.name].find((value): value is string => typeof value === 'string');
+	const isRfc7807 =
+		typeof body.detail === 'string' &&
+		typeof body.title === 'string' &&
+		problemType !== undefined &&
+		(problemType === 'about:blank' || /^https?:\/\//i.test(problemType));
+	if (numericStatus === undefined && !isRfc7807) return undefined;
+
+	const detail = [body.detail, body.message, body.title].find(
+		(value): value is string => typeof value === 'string' && value.trim().length > 0,
+	);
+	const statusSuffix = numericStatus !== undefined ? ` (${numericStatus})` : '';
+	return {
+		message: `BatchData returned an error inside a 2xx response${statusSuffix}: ${detail ?? 'no detail given'}`,
+		httpCode: numericStatus !== undefined ? String(numericStatus) : undefined,
+	};
+}
+
 export async function batchDataRequest(
 	this: HttpContext,
 	method: IHttpRequestMethods,
@@ -152,11 +184,25 @@ export async function batchDataRequest(
 	if (qs !== undefined && Object.keys(qs).length > 0) options.qs = qs;
 
 	const helpers = this.helpers as IExecuteFunctions['helpers'];
-	return (await helpers.httpRequestWithAuthentication.call(
+	const response = (await helpers.httpRequestWithAuthentication.call(
 		this as IExecuteFunctions,
 		'batchDataApi',
 		options,
 	)) as IDataObject;
+
+	const problem = findProblemInBody(response);
+	if (problem) {
+		const apiError = new NodeApiError(this.getNode(), response as JsonObject, {
+			message: problem.message,
+			httpCode: problem.httpCode,
+			description:
+				describeHttpError(problem.httpCode) ??
+				'The API answered with success but the body is an error object, so no results were returned.',
+		});
+		apiError.context.problemInBody = true;
+		throw apiError;
+	}
+	return response;
 }
 
 interface ErrorLike {
@@ -210,12 +256,22 @@ export function describeHttpError(httpCode: string | undefined): string | undefi
 	}
 }
 
+export function isHttpNotFound(error: unknown): boolean {
+	if (error instanceof NodeApiError && error.context.problemInBody === true) return false;
+	return String((error as { httpCode?: unknown }).httpCode ?? '') === '404';
+}
+
 export function toNodeApiError(
 	context: { getNode: IExecuteFunctions['getNode'] },
 	error: unknown,
 	itemIndex: number,
 ): NodeApiError | NodeOperationError {
-	if (error instanceof NodeOperationError || error instanceof NodeApiError) return error;
+	if (error instanceof NodeOperationError || error instanceof NodeApiError) {
+		if (error.context.itemIndex === undefined) {
+			error.context.itemIndex = itemIndex;
+		}
+		return error;
+	}
 	const { message, httpCode } = extractApiError(error);
 	if (httpCode === undefined) {
 		return new NodeOperationError(context.getNode(), message, { itemIndex });

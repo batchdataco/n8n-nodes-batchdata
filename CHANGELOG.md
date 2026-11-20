@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4
+
+- When BatchData returns a 2xx status but the body is an error object (for example `{"status":500,"detail":"Request responded with status code 500"}`) and has no `results`, the node throws an error with the status and detail. Before, it returned zero items with no error, so an AI Agent got an empty tool result. A real empty result list still returns zero items.
+- The BatchData Trigger (polling) and the BatchData Monitor Trigger also fail on such a body. A 2xx body with `status: 404` no longer makes the Monitor Trigger think that its monitor is gone, so it does not create a second monitor. A body with status 401, 402, 403 or 429 gets the same help text as the real HTTP error.
+- README: current status line, a "Use as an AI Agent tool" section, and an example workflow in `examples/ai-agent-address-tool.workflow.json`.
+
+
 ## 0.2.3
 
 - Add a credential test to the BatchData API credential (n8n Creator Portal review: "missing credential test"). It sends `GET /api/v2/property/search-sessions?take=1` with the Bearer token from `authenticate`: a valid token returns 200 and a bad token returns 401. The call is read-only and does not bill property records. 401, 403 and 429 get clear messages.

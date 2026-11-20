@@ -2,7 +2,7 @@
 
 Three [n8n](https://n8n.io) community nodes for the [BatchData](https://batchdata.io) API: **BatchData** (actions), **BatchData Trigger** (polling) and **BatchData Monitor Trigger** (instant). Search properties, pull full property data, find owner contacts, check permits, find investors, verify addresses and phones, run search sessions and monitor properties inside your workflows.
 
-> Status: published on npm as `n8n-nodes-batchdata` 0.2.2. To appear in n8n as a verified community node, the package still needs to be submitted through the [n8n Creator Portal](https://creators.n8n.io/nodes). See [Publishing](#publishing).
+> Status: Published on npm as `n8n-nodes-batchdata` and verified by n8n (available on n8n Cloud).
 
 ## Install
 
@@ -12,7 +12,7 @@ In n8n, go to **Settings > Community Nodes > Install** and enter `n8n-nodes-batc
 
 Create a **BatchData API** credential and paste your API token (the same token you use as `Authorization: Bearer <token>`). Tokens are created in your BatchData account. API reference: [developer.batchdata.com](https://developer.batchdata.com).
 
-**Test button.** The test posts an empty batch to `POST /api/v1/address/verify`. A valid token gets HTTP 400 (empty batch, treated as success). An invalid token gets 401 or 403 (shown as an error). The 400 is rejected before any lookup, so no address is processed. Billing for rejected requests is assumed, not confirmed in the API spec.
+**Test button** (`credentials/BatchDataApi.credentials.ts`). The test sends `GET https://api.batchdata.com/api/v2/property/search-sessions?take=1` with the Bearer header from the credential. A valid token gets HTTP 200. A rejected token gets 401 ("The API token was rejected"). 403 means the token lacks the property search sessions permission, which this test needs. 429 means the rate limit was reached. The call only lists search sessions; per CHANGELOG 0.2.3 it does not bill property records. Since 0.2.3 the nodes have no node-level `testedBy` method, so this credential test is the single check.
 
 ## Operations
 
@@ -25,7 +25,7 @@ Create a **BatchData API** credential and paste your API token (the same token y
 | Phone           | Verify                 | `POST /api/v1/phone/verification`                                             | Per requested phone number.                                                             |
 | Phone           | Check DNC              | `POST /api/v1/phone/dnc`                                                      | Per requested phone number.                                                             |
 | Phone           | Check TCPA             | `POST /api/v1/phone/tcpa`                                                     | Per requested phone number.                                                             |
-| Custom API Call | Make a Custom API Call | Any `/api/...` path                                                           | Follows the endpoint you call.                                                          |
+| Custom API Call | Make                   | Any `/api/...` path                                                           | Follows the endpoint you call.                                                          |
 
 Each input item makes one API call. Search returns one output item per property (or a single item with counts, via **Options > Output Mode**). Skip trace returns one item per person found. Phone and address operations return one item per result. Every output item is linked to its input item.
 
@@ -33,7 +33,24 @@ All operations honor **Continue On Fail**: the failed item returns `{ "error": "
 
 ### Property > Search
 
-Filters are built for you (location query, quicklists, bedrooms, bathrooms, year built, living area, lot size, estimated value, equity percent, last sale date, owner occupied, property type). For anything else, paste extra `searchCriteria` JSON in **Additional Search Criteria**. Fields you set in the form win over the same fields in the JSON. **Limit** is 0 to 100 (default 25).
+Filters are built for you (location query, quicklists, bedrooms, bathrooms, year built, living area, lot size, estimated value, equity percent, last sale date, owner occupied, property type). For anything else, paste extra `searchCriteria` JSON in **Additional Search Criteria**. Fields you set in the form win over the same fields in the JSON. **Limit** is 0 to 100 (default 1, to avoid unexpected billing).
+
+### Default limits
+
+Each limit caps the results one run returns: property records for Property > Search, sessions for List Search Sessions, and address suggestions for Autocomplete Address. Per the module descriptions in the shared catalog, List Search Sessions does not bill property records and Autocomplete Address is billed per call. The two Include settings are off by default; Include Property Record (Billed) adds a property lookup per event, billed per matched property.
+
+| Operation | Field | Default |
+| --- | --- | --- |
+| Property > Search | Limit | 1 |
+| Property > Get Property Permits | Limit | 1 |
+| Investor > Find Investors (Buy Box) | Limit | 1 |
+| Investor > Get Investor Properties | Limit | 1 |
+| Search Session > Create or Advance Search Session | Limit | 1 |
+| Address > Autocomplete Address | Limit | 5 |
+| Search Session > List Search Sessions | Limit | 50 |
+| BatchData Trigger > New Property in Search Session (Billed) | Limit | 5 |
+| Skip Trace, Batch Skip Trace, Reverse Skip Trace | Include TCPA-Flagged Phones | off |
+| BatchData Monitor Trigger | Include Property Record (Billed) | off |
 
 ### Property > Skip Trace and the TCPA setting
 
@@ -53,6 +70,20 @@ Phone results are a point-in-time answer. Re-check before each campaign. You are
 ### Custom API Call
 
 Calls any path under `https://api.batchdata.com/api/`. The host is fixed and the token is added from your credential. Wallet endpoints are blocked, and `webhookUrl` / `errorWebhookUrl` are removed from the body because webhook delivery only applies to asynchronous requests, which this node does not support.
+
+## Use as an AI Agent tool
+
+The BatchData node has `usableAsTool` set. Connect it to the **Tool** input of an **AI Agent** node.
+
+1. Pick the resource and operation, for example Address > Verify.
+2. For each field the model must fill, click the sparkle button "Let the model define this parameter". n8n then writes a `$fromAI()` expression, such as `{{ $fromAI('street', 'Street address', 'string') }}`.
+3. Give the tool a clear description so the model knows when to call it.
+
+A BatchData sandbox token returns mock data and does not bill your account. Test the agent with a sandbox token first.
+
+If the API answers with an error object, the tool returns an error to the agent, not an empty result.
+
+See [examples/ai-agent-address-tool.workflow.json](examples/ai-agent-address-tool.workflow.json). Import it with **Workflows > Import from File**, then pick a chat model and your BatchData credential.
 
 ## Added in 0.2.0
 
@@ -89,6 +120,15 @@ Reverse skip trace returns nothing for a no-match, and always sends the TCPA set
 
 Paths must start with `/api/`. Wallet and billing endpoints, every `async` endpoint, and creating or changing a property monitor (`POST`, `PUT`, `PATCH` on `property-subscription`) are blocked. `webhookUrl` and `errorWebhookUrl` are removed from the body at any depth, in any letter case.
 
+## Changes in 0.2.1 to 0.2.4
+
+- 0.2.4 (the release in this repo): a 2xx response whose body is an error object now fails the node and both triggers, instead of returning zero items; AI Agent tool docs and an example workflow.
+- 0.2.3: credential test added (`GET /api/v2/property/search-sessions?take=1`); node-level `testedBy` methods removed.
+- 0.2.2: passes `npx @n8n/scan-community-package`; the Custom API Call operation is named "Make".
+- 0.2.1: first npm publish from GitHub Actions with provenance; billed defaults of 1 result (and 5 for the billed session trigger); HTTP 402 explains that the balance is too low.
+
+Full history: [CHANGELOG.md](CHANGELOG.md).
+
 ## Not exposed
 
 Asynchronous (webhook-delivered) requests, wallet endpoints, and any field where you could type a webhook or callback URL.
@@ -108,7 +148,7 @@ Tests run the node against a fake n8n context with response fixtures built from 
 
 ## Publishing
 
-n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (`0.2.2`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
+n8n requires community nodes submitted for verification to be published from GitHub Actions with npm provenance. `.github/workflows/publish.yml` does this on a version tag (for example `0.2.4`). Setup (npm package ownership and trusted publisher or `NPM_TOKEN` secret) is described in that file. After publishing, submit the package through the [n8n Creator Portal](https://creators.n8n.io/nodes) (docs: [Submit community nodes](https://docs.n8n.io/connect/create-nodes/deploy-your-node/submit-community-nodes/)).
 
 ## Support
 
