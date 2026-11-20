@@ -11,7 +11,7 @@ import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { collectInputWith } from '../BatchData/catalogExecute';
 import { buildRequest, getPath, setPath, toBoolean } from '../BatchData/catalogEngine';
 import { catalog, opProperties } from '../BatchData/catalogProperties';
-import { batchDataRequest, toNodeApiError } from '../BatchData/GenericFunctions';
+import { batchDataRequest, isHttpNotFound, toNodeApiError } from '../BatchData/GenericFunctions';
 import { eventRecord, rememberIds, subscriptionIdFrom } from '../BatchData/triggerSupport';
 
 const op = catalog.triggers.find((t) => t.key === 'monitor_event')!;
@@ -63,8 +63,7 @@ export class BatchDataMonitorTrigger implements INodeType {
 					);
 					return true;
 				} catch (error) {
-					const code = String((error as { httpCode?: unknown }).httpCode ?? '');
-					if (code === '404') {
+					if (isHttpNotFound(error)) {
 						delete data.subscriptionId;
 						return false;
 					}
@@ -107,7 +106,7 @@ export class BatchDataMonitorTrigger implements INodeType {
 						(op.http.deletePath as string).replace('{id}', encodeURIComponent(id)),
 					);
 				} catch (error) {
-					if (String((error as { httpCode?: unknown }).httpCode ?? '') !== '404') {
+					if (!isHttpNotFound(error)) {
 						throw toNodeApiError(this, error, 0);
 					}
 				}

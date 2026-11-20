@@ -57,3 +57,60 @@ export function httpError(status, body) {
 	error.response = { status, data: body };
 	return error;
 }
+
+const triggerNode = {
+	id: 't',
+	name: 'BatchData',
+	type: 'x',
+	typeVersion: 1,
+	position: [0, 0],
+	parameters: {},
+};
+
+export function pollContext({ event, params = {}, mode = 'trigger', responses, staticData = {} }) {
+	const calls = [];
+	let n = 0;
+	const context = {
+		getNode: () => triggerNode,
+		getMode: () => mode,
+		getWorkflowStaticData: () => staticData,
+		getNodeParameter: (name, fallback) => {
+			if (name === 'event') return event;
+			if (name in params) return params[name];
+			if (fallback !== undefined) return fallback;
+			throw new Error(`Missing ${name}`);
+		},
+		helpers: {
+			httpRequestWithAuthentication: async (credentialType, options) => {
+				calls.push({ credentialType, ...options });
+				return responses[n++];
+			},
+		},
+	};
+	return { context, calls, staticData };
+}
+
+export function hookContext({ params = {}, staticData = {}, responses = [], body = {} }) {
+	const calls = [];
+	let n = 0;
+	const context = {
+		getNode: () => triggerNode,
+		getWorkflowStaticData: () => staticData,
+		getNodeWebhookUrl: () => 'https://n8n.example.com/webhook/abc/batchdata-monitor',
+		getBodyData: () => body,
+		getNodeParameter: (name, fallback) => {
+			if (name in params) return params[name];
+			if (fallback !== undefined) return fallback;
+			throw new Error(`Missing ${name}`);
+		},
+		helpers: {
+			httpRequestWithAuthentication: async (credentialType, options) => {
+				calls.push({ credentialType, ...options });
+				const next = responses[n++];
+				if (next instanceof Error) throw next;
+				return next;
+			},
+		},
+	};
+	return { context, calls, staticData };
+}

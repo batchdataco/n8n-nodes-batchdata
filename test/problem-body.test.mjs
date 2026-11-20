@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { fixture, runNode } from './helpers.mjs';
+import { BatchDataTrigger } from '../dist/nodes/BatchDataTrigger/BatchDataTrigger.node.js';
+import { BatchDataMonitorTrigger } from '../dist/nodes/BatchDataMonitorTrigger/BatchDataMonitorTrigger.node.js';
+import { fixture, hookContext, pollContext, runNode } from './helpers.mjs';
 
 const PRISM_PROBLEM = {
 	type: 'https://stoplight.io/prism/errors#INVALID_API_RESPONSE',
@@ -167,4 +169,46 @@ test('a message-only custom call response does not fail the run', async () => {
 	});
 	assert.equal(output.length, 1);
 	assert.deepEqual(output[0].json, { message: 'Subscription deleted' });
+});
+
+test('a 2xx problem body with status 401 explains that the token was rejected', async () => {
+	await assert.rejects(
+		runNode({
+			params: [addressVerify()],
+			responses: [{ status: 401, detail: 'Invalid token' }],
+		}),
+		(err) => err.httpCode === '401' && /token was rejected/.test(err.description),
+	);
+});
+
+test('the polling trigger fails a poll on a 2xx problem body with its detail', async () => {
+	const { context } = pollContext({ event: 'new_search_session', responses: [PRISM_PROBLEM] });
+	await assert.rejects(new BatchDataTrigger().poll.call(context), (err) =>
+		/Request responded with status code 500/.test(err.message),
+	);
+});
+
+test('monitor trigger checkExists keeps the monitor and fails on a 2xx body with status 404', async () => {
+	const trigger = new BatchDataMonitorTrigger();
+	const h = hookContext({
+		staticData: { subscriptionId: 'sub1' },
+		responses: [{ status: 404, detail: 'Subscription lookup failed' }],
+	});
+	await assert.rejects(trigger.webhookMethods.default.checkExists.call(h.context), (err) =>
+		/Subscription lookup failed/.test(err.message),
+	);
+	assert.equal(h.staticData.subscriptionId, 'sub1');
+	assert.equal(h.calls.length, 1);
+});
+
+test('monitor trigger delete keeps the monitor id and fails on a 2xx body with status 404', async () => {
+	const trigger = new BatchDataMonitorTrigger();
+	const h = hookContext({
+		staticData: { subscriptionId: 'sub1' },
+		responses: [{ status: 404, detail: 'Subscription delete failed' }],
+	});
+	await assert.rejects(trigger.webhookMethods.default.delete.call(h.context), (err) =>
+		/Subscription delete failed/.test(err.message),
+	);
+	assert.equal(h.staticData.subscriptionId, 'sub1');
 });

@@ -192,12 +192,15 @@ export async function batchDataRequest(
 
 	const problem = findProblemInBody(response);
 	if (problem) {
-		throw new NodeApiError(this.getNode(), response as JsonObject, {
+		const apiError = new NodeApiError(this.getNode(), response as JsonObject, {
 			message: problem.message,
 			httpCode: problem.httpCode,
 			description:
+				describeHttpError(problem.httpCode) ??
 				'The API answered with success but the body is an error object, so no results were returned.',
 		});
+		apiError.context.problemInBody = true;
+		throw apiError;
 	}
 	return response;
 }
@@ -251,6 +254,11 @@ export function describeHttpError(httpCode: string | undefined): string | undefi
 		default:
 			return undefined;
 	}
+}
+
+export function isHttpNotFound(error: unknown): boolean {
+	if (error instanceof NodeApiError && error.context.problemInBody === true) return false;
+	return String((error as { httpCode?: unknown }).httpCode ?? '') === '404';
 }
 
 export function toNodeApiError(
